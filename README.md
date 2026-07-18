@@ -2,6 +2,13 @@
 
 A full stack job board application built with the MERN stack (MongoDB, Express, React, Node.js) where companies can post jobs and applicants can apply and track their application status.
 
+## Live Demo
+
+- Frontend: https://job-board-theta-jade-59.vercel.app
+- Backend: https://job-board-server-my5v.onrender.com
+
+> Note: The backend is hosted on Render's free tier and may take 30-60 seconds to wake up on the first request if it has been inactive.
+
 ## Features
 
 ### For Companies
