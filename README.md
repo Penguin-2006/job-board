@@ -40,7 +40,6 @@ A full stack job board application built with the MERN stack (MongoDB, Express, 
 - MongoDB + Mongoose
 - JWT Authentication
 - bcryptjs (password hashing)
-- Cloudinary (file storage)
 
 ## Getting Started
 
@@ -70,9 +69,6 @@ npm install
 PORT=5000
 MONGO_URI=your_mongodb_atlas_connection_string
 JWT_SECRET=your_jwt_secret
-CLOUDINARY_CLOUD_NAME=your_cloudinary_name
-CLOUDINARY_API_KEY=your_cloudinary_key
-CLOUDINARY_API_SECRET=your_cloudinary_secret
 ```
 
 4. Start the backend
