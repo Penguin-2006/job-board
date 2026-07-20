@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 const Home = () => {
   return (
     <div>
-      {/* Hero Section */}
+      
       <div className="hero">
         <h1>Find Your Dream Job</h1>
         <p>Connect with top companies and opportunities that match your skills and ambitions.</p>
@@ -13,7 +13,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Stats Section */}
+      
       <div className="stats">
         <div>
           <p className="stat-number">500+</p>
@@ -29,7 +29,7 @@ const Home = () => {
         </div>
       </div>
 
-      {/* CTA Section */}
+      
       <div className="cta">
         <h2>Are you hiring?</h2>
         <p>Post your job openings and find the best talent from across the country.</p>

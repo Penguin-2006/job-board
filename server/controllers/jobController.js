@@ -1,6 +1,6 @@
 import Job from "../models/Job.js";
 
-// @route POST /api/jobs
+
 export const createJob = async (req, res) => {
   const { title, description, location, salary, skills, jobType, deadline } = req.body;
 
@@ -23,7 +23,7 @@ export const createJob = async (req, res) => {
   }
 };
 
-// @route GET /api/jobs
+
 export const getJobs = async (req, res) => {
   try {
     const { skills, location, jobType } = req.query;
@@ -40,7 +40,7 @@ export const getJobs = async (req, res) => {
   }
 };
 
-// @route GET /api/jobs/:id
+
 export const getJobById = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id).populate("postedBy", "name email");
@@ -55,7 +55,7 @@ export const getJobById = async (req, res) => {
   }
 };
 
-// @route PUT /api/jobs/:id
+
 export const updateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
@@ -75,7 +75,7 @@ export const updateJob = async (req, res) => {
   }
 };
 
-// @route DELETE /api/jobs/:id
+
 export const deleteJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);

@@ -2,12 +2,12 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 
-// Generate JWT
+
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 };
 
-// @route POST /api/auth/register
+
 export const register = async (req, res) => {
   const { name, email, password, role, company } = req.body;
 
@@ -40,7 +40,7 @@ export const register = async (req, res) => {
   }
 };
 
-// @route POST /api/auth/login
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -69,7 +69,7 @@ export const login = async (req, res) => {
   }
 };
 
-// @route GET /api/auth/me
+
 export const getMe = async (req, res) => {
   const user = await User.findById(req.user.id).select("-password");
   res.json(user);

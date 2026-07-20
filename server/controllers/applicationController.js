@@ -1,7 +1,7 @@
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
 
-// @route POST /api/applications/:jobId
+
 export const applyForJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.jobId);
@@ -31,7 +31,7 @@ export const applyForJob = async (req, res) => {
   }
 };
 
-// @route GET /api/applications/job/:jobId
+
 export const getApplicationsByJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.jobId);
@@ -54,7 +54,7 @@ export const getApplicationsByJob = async (req, res) => {
   }
 };
 
-// @route GET /api/applications/me
+
 export const getMyApplications = async (req, res) => {
   try {
     const applications = await Application.find({ applicant: req.user._id })
@@ -67,7 +67,7 @@ export const getMyApplications = async (req, res) => {
   }
 };
 
-// @route PUT /api/applications/:id
+
 export const updateApplicationStatus = async (req, res) => {
   try {
     const application = await Application.findById(req.params.id)

@@ -105,7 +105,7 @@ const CompanyDashboard = () => {
         </button>
       </div>
 
-      {/* Post Job Form */}
+      
       {showForm && (
         <div className="card" style={{ marginBottom: "32px" }}>
           <h2 className="section-title">Post a New Job</h2>
@@ -204,7 +204,7 @@ const CompanyDashboard = () => {
         </div>
       )}
 
-      {/* Jobs List */}
+      
       {jobs.length === 0 ? (
         <div className="empty-state">
           No jobs posted yet. Click "+ Post a Job" to get started.

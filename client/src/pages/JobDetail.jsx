@@ -56,7 +56,7 @@ const JobDetail = () => {
           <span className="badge">{job.jobType}</span>
         </div>
 
-        {/* Details Grid */}
+        
         <div className="job-detail-grid">
           <div>
             <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Location</p>
@@ -80,13 +80,13 @@ const JobDetail = () => {
           </div>
         </div>
 
-        {/* Description */}
+        
         <div style={{ marginBottom: "24px" }}>
           <h2 className="section-title">Job Description</h2>
           <p style={{ color: "#4b5563", lineHeight: "1.7" }}>{job.description}</p>
         </div>
 
-        {/* Skills */}
+        
         <div style={{ marginBottom: "32px" }}>
           <h2 className="section-title">Required Skills</h2>
           <div className="skills-list">
@@ -96,7 +96,7 @@ const JobDetail = () => {
           </div>
         </div>
 
-        {/* Apply */}
+        
         {user && user.role === "applicant" && (
           <div>
             {error && <div className="error-box">{error}</div>}
