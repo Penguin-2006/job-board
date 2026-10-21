@@ -24,16 +24,42 @@ export const createJob = async (req, res) => {
 };
 
 
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 export const getJobs = async (req, res) => {
   try {
-    const { skills, location, jobType } = req.query;
-    let filter = {};
+    const { search, skills, location, jobType } = req.query;
+    const filter = {};
 
-    if (skills) filter.skills = { $in: skills.split(",") };
-    if (location) filter.location = { $regex: location, $options: "i" };
+    if (search && search.trim()) {
+      const pattern = new RegExp(escapeRegex(search.trim()), "i");
+      filter.$or = [
+        { title: pattern },
+        { company: pattern },
+        { description: pattern },
+        { skills: pattern }
+      ];
+    }
+
+    if (skills) {
+      const skillPatterns = skills
+        .split(",")
+        .map((skill) => skill.trim())
+        .filter(Boolean)
+        .map((skill) => new RegExp(escapeRegex(skill), "i"));
+      if (skillPatterns.length) filter.skills = { $in: skillPatterns };
+    }
+
+    if (location && location.trim()) {
+      filter.location = { $regex: escapeRegex(location.trim()), $options: "i" };
+    }
+
     if (jobType) filter.jobType = jobType;
 
-    const jobs = await Job.find(filter).populate("postedBy", "name email").sort({ createdAt: -1 });
+    const jobs = await Job.find(filter)
+      .populate("postedBy", "name email")
+      .sort({ createdAt: -1 });
+
     res.json(jobs);
   } catch (error) {
     res.status(500).json({ message: error.message });
