@@ -41,7 +41,7 @@ export const getApplicationsByJob = async (req, res) => {
     }
 
     if (job.postedBy.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
+      return res.status(403).json({ message: "Not authorized" });
     }
 
     const applications = await Application.find({ job: req.params.jobId })
@@ -78,7 +78,7 @@ export const updateApplicationStatus = async (req, res) => {
     }
 
     if (application.job.postedBy.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
+      return res.status(403).json({ message: "Not authorized" });
     }
 
     application.status = req.body.status;

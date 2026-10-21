@@ -65,10 +65,19 @@ export const updateJob = async (req, res) => {
     }
 
     if (job.postedBy.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
+      return res.status(403).json({ message: "Not authorized" });
     }
 
-    const updatedJob = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const allowed = ["title", "description", "location", "salary", "skills", "jobType", "deadline"];
+    const updates = {};
+    allowed.forEach((field) => {
+      if (req.body[field] !== undefined) updates[field] = req.body[field];
+    });
+
+    const updatedJob = await Job.findByIdAndUpdate(req.params.id, updates, {
+      new: true,
+      runValidators: true
+    });
     res.json(updatedJob);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -85,7 +94,7 @@ export const deleteJob = async (req, res) => {
     }
 
     if (job.postedBy.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: "Not authorized" });
+      return res.status(403).json({ message: "Not authorized" });
     }
 
     await Job.findByIdAndDelete(req.params.id);
