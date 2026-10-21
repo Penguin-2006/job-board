@@ -12,7 +12,7 @@ const ApplicantDashboard = () => {
     const fetchApplications = async () => {
       try {
         const { data } = await axios.get("/applications/me");
-        setApplications(data);
+        setApplications(data.filter((app) => app.job));
       } catch (error) {
         console.error(error);
       } finally {

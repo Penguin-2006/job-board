@@ -24,10 +24,6 @@ const userSchema = new mongoose.Schema({
   company: {
     type: String,
     default: ""
-  },
-  profilePicture: {
-    type: String,
-    default: ""
   }
 }, { timestamps: true });
 

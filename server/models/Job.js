@@ -8,7 +8,8 @@ const jobSchema = new mongoose.Schema({
   },
   description: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   company: {
     type: String,
@@ -16,14 +17,17 @@ const jobSchema = new mongoose.Schema({
   },
   location: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   salary: {
     type: Number,
-    required: true
+    required: true,
+    min: 0
   },
   skills: [{
-    type: String
+    type: String,
+    trim: true
   }],
   jobType: {
     type: String,
@@ -32,7 +36,11 @@ const jobSchema = new mongoose.Schema({
   },
   deadline: {
     type: Date,
-    required: true
+    required: true,
+    validate: {
+      validator: (value) => value >= new Date(new Date().setUTCHours(0, 0, 0, 0)),
+      message: "Deadline cannot be in the past"
+    }
   },
   postedBy: {
     type: mongoose.Schema.Types.ObjectId,

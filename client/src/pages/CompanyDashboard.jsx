@@ -80,6 +80,7 @@ const CompanyDashboard = () => {
   };
 
   const handleDeleteJob = async (jobId) => {
+    if (!window.confirm("Delete this job and all its applications?")) return;
     try {
       await axios.delete(`/jobs/${jobId}`);
       fetchJobs();
@@ -243,6 +244,7 @@ const CompanyDashboard = () => {
                       <div>
                         <p style={{ fontWeight: "500", color: "#0f172a" }}>{app.applicant.name}</p>
                         <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>{app.applicant.email}</p>
+                        <a href={app.resumeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.875rem", color: "#1e40af" }}>View resume</a>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <span className={`badge ${

@@ -9,10 +9,24 @@ const generateToken = (id) => {
 
 
 export const register = async (req, res) => {
-  const { name, email, password, role, company } = req.body;
+  const { name, email, password, role, company } = req.body || {};
 
   try {
-    const userExists = await User.findOne({ email });
+    if (![name, email, password].every((v) => typeof v === "string" && v.trim())) {
+      return res.status(400).json({ message: "Name, email and password are required" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+    if (!["applicant", "company"].includes(role)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+    if (role === "company" && !(typeof company === "string" && company.trim())) {
+      return res.status(400).json({ message: "Company name is required" });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
       return res.status(400).json({ message: "User already exists" });
     }
@@ -21,11 +35,11 @@ export const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      name,
-      email,
+      name: name.trim(),
+      email: cleanEmail,
       password: hashedPassword,
       role,
-      company: role === "company" ? company : ""
+      company: role === "company" ? company.trim() : ""
     });
 
     res.status(201).json({
@@ -36,16 +50,20 @@ export const register = async (req, res) => {
       token: generateToken(user._id)
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
-
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password } = req.body || {};
 
   try {
-    const user = await User.findOne({ email });
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
@@ -65,12 +83,7 @@ export const login = async (req, res) => {
       token: generateToken(user._id)
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
-};
-
-
-export const getMe = async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
-  res.json(user);
 };

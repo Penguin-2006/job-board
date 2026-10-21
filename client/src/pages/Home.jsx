@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 const Home = () => {
   return (
     <div>
-      
       <div className="hero">
         <h1>Find Your Dream Job</h1>
         <p>Connect with top companies and opportunities that match your skills and ambitions.</p>
@@ -13,23 +12,6 @@ const Home = () => {
         </div>
       </div>
 
-      
-      <div className="stats">
-        <div>
-          <p className="stat-number">500+</p>
-          <p className="stat-label">Jobs Posted</p>
-        </div>
-        <div>
-          <p className="stat-number">200+</p>
-          <p className="stat-label">Companies</p>
-        </div>
-        <div>
-          <p className="stat-number">1000+</p>
-          <p className="stat-label">Applicants</p>
-        </div>
-      </div>
-
-      
       <div className="cta">
         <h2>Are you hiring?</h2>
         <p>Post your job openings and find the best talent from across the country.</p>

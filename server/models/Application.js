@@ -22,4 +22,6 @@ const applicationSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+applicationSchema.index({ job: 1, applicant: 1 }, { unique: true });
+
 export default mongoose.model("Application", applicationSchema);
