@@ -2,26 +2,32 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import axios from "../utils/axios";
 
+const emptyForm = {
+  title: "",
+  description: "",
+  location: "",
+  salary: "",
+  skills: "",
+  jobType: "full-time",
+  deadline: ""
+};
+
 const CompanyDashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-    location: "",
-    salary: "",
-    skills: "",
-    jobType: "full-time",
-    deadline: ""
-  });
+  const [formData, setFormData] = useState(emptyForm);
+  const [formError, setFormError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [posting, setPosting] = useState(false);
+  const today = new Date().toISOString().split("T")[0];
 
   const fetchJobs = async () => {
     try {
       const { data } = await axios.get("/jobs");
-      const myJobs = data.filter((job) => job.postedBy._id === user._id);
+      const myJobs = data.filter((job) => job.postedBy?._id === user._id);
       setJobs(myJobs);
     } catch (error) {
       console.error(error);
@@ -51,41 +57,49 @@ const CompanyDashboard = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleToggleForm = () => {
+    setShowForm(!showForm);
+    setFormError("");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setPosting(true);
+    setFormError("");
     try {
       await axios.post("/jobs", {
         ...formData,
         salary: Number(formData.salary),
-        skills: formData.skills.split(",").map((s) => s.trim())
+        skills: formData.skills.split(",").map((s) => s.trim()).filter(Boolean)
       });
       setShowForm(false);
-      setFormData({
-        title: "", description: "", location: "",
-        salary: "", skills: "", jobType: "full-time", deadline: ""
-      });
+      setFormData(emptyForm);
       fetchJobs();
     } catch (error) {
-      console.error(error);
+      setFormError(error.response?.data?.message || "Failed to post job");
+    } finally {
+      setPosting(false);
     }
   };
 
   const handleStatusUpdate = async (applicationId, status, jobId) => {
+    setActionError("");
     try {
       await axios.put(`/applications/${applicationId}`, { status });
       fetchApplications(jobId);
     } catch (error) {
-      console.error(error);
+      setActionError(error.response?.data?.message || "Failed to update status");
     }
   };
 
   const handleDeleteJob = async (jobId) => {
     if (!window.confirm("Delete this job and all its applications?")) return;
+    setActionError("");
     try {
       await axios.delete(`/jobs/${jobId}`);
       fetchJobs();
     } catch (error) {
-      console.error(error);
+      setActionError(error.response?.data?.message || "Failed to delete job");
     }
   };
 
@@ -98,18 +112,17 @@ const CompanyDashboard = () => {
           <h1 className="dashboard-title">Company Dashboard</h1>
           <p className="dashboard-subtitle">Welcome, {user.name}</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="btn-primary"
-        >
+        <button onClick={handleToggleForm} className="btn-primary">
           {showForm ? "Cancel" : "+ Post a Job"}
         </button>
       </div>
 
-      
+      {actionError && <div className="error-box">{actionError}</div>}
+
       {showForm && (
         <div className="card" style={{ marginBottom: "32px" }}>
           <h2 className="section-title">Post a New Job</h2>
+          {formError && <div className="error-box">{formError}</div>}
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
               <div className="form-group">
@@ -141,6 +154,7 @@ const CompanyDashboard = () => {
                   name="salary"
                   value={formData.salary}
                   onChange={handleChange}
+                  min="0"
                   required
                   className="form-input"
                 />
@@ -178,6 +192,7 @@ const CompanyDashboard = () => {
                   name="deadline"
                   value={formData.deadline}
                   onChange={handleChange}
+                  min={today}
                   required
                   className="form-input"
                 />
@@ -196,16 +211,16 @@ const CompanyDashboard = () => {
             </div>
             <button
               type="submit"
+              disabled={posting}
               className="btn-primary"
-              style={{ marginTop: "8px" }}
+              style={{ marginTop: "8px", opacity: posting ? 0.5 : 1 }}
             >
-              Post Job
+              {posting ? "Posting..." : "Post Job"}
             </button>
           </form>
         </div>
       )}
 
-      
       {jobs.length === 0 ? (
         <div className="empty-state">
           No jobs posted yet. Click "+ Post a Job" to get started.
@@ -242,8 +257,8 @@ const CompanyDashboard = () => {
                   {applications[job._id]?.map((app) => (
                     <div key={app._id} className="applicant-row">
                       <div>
-                        <p style={{ fontWeight: "500", color: "#0f172a" }}>{app.applicant.name}</p>
-                        <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>{app.applicant.email}</p>
+                        <p style={{ fontWeight: "500", color: "#0f172a" }}>{app.applicant?.name}</p>
+                        <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>{app.applicant?.email}</p>
                         <a href={app.resumeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.875rem", color: "#1e40af" }}>View resume</a>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
