@@ -5,7 +5,12 @@ const instance = axios.create({
 });
 
 instance.interceptors.request.use((config) => {
-  const user = JSON.parse(localStorage.getItem("user"));
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem("user"));
+  } catch {
+    localStorage.removeItem("user");
+  }
   if (user && user.token) {
     config.headers.Authorization = `Bearer ${user.token}`;
   }

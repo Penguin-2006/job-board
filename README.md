@@ -30,7 +30,7 @@ A full stack job board application built with the MERN stack (MongoDB, Express, 
 ### Frontend
 - React.js (Vite)
 - Redux Toolkit (state management)
-- React Router v6 (routing)
+- React Router v7 (routing)
 - Axios (API calls)
 - Plain CSS
 
