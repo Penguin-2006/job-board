@@ -2,6 +2,7 @@ import express from "express";
 import {
   createJob,
   getJobs,
+  getMyJobs,
   getJobById,
   updateJob,
   deleteJob
@@ -12,6 +13,7 @@ import restrictTo from "../middleware/roleMiddleware.js";
 const router = express.Router();
 
 router.get("/", getJobs);
+router.get("/mine", protect, restrictTo("company"), getMyJobs);
 router.get("/:id", getJobById);
 router.post("/", protect, restrictTo("company"), createJob);
 router.put("/:id", protect, restrictTo("company"), updateJob);

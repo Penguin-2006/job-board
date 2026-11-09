@@ -1,13 +1,15 @@
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
 import handleError from "../utils/handleError.js";
+import { isHttpUrl } from "../utils/url.js";
+import { isClosed } from "../utils/deadline.js";
 
 const STATUSES = ["pending", "reviewed", "accepted", "rejected"];
 
 export const applyForJob = async (req, res) => {
   try {
     const resumeUrl = req.body && req.body.resumeUrl;
-    if (typeof resumeUrl !== "string" || !/^https?:\/\//i.test(resumeUrl.trim())) {
+    if (!isHttpUrl(resumeUrl)) {
       return res.status(400).json({ message: "A valid resume link is required" });
     }
 
@@ -17,9 +19,7 @@ export const applyForJob = async (req, res) => {
       return res.status(404).json({ message: "Job not found" });
     }
 
-    const closesAt = new Date(job.deadline);
-    closesAt.setUTCHours(23, 59, 59, 999);
-    if (closesAt < new Date()) {
+    if (isClosed(job.deadline)) {
       return res.status(400).json({ message: "Applications for this job are closed" });
     }
 
@@ -47,6 +47,18 @@ export const applyForJob = async (req, res) => {
   }
 };
 
+export const checkApplied = async (req, res) => {
+  try {
+    const existing = await Application.exists({
+      job: req.params.jobId,
+      applicant: req.user._id
+    });
+    res.json({ applied: Boolean(existing) });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 export const getApplicationsByJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.jobId);
@@ -69,10 +81,24 @@ export const getApplicationsByJob = async (req, res) => {
   }
 };
 
+export const getReceivedApplications = async (req, res) => {
+  try {
+    const jobs = await Job.find({ postedBy: req.user._id }).select("_id");
+
+    const applications = await Application.find({ job: { $in: jobs.map((job) => job._id) } })
+      .populate("applicant", "name email")
+      .sort({ createdAt: -1 });
+
+    res.json(applications);
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
 export const getMyApplications = async (req, res) => {
   try {
     const applications = await Application.find({ applicant: req.user._id })
-      .populate("job", "title company location salary")
+      .populate("job", "title company location salary deadline")
       .sort({ createdAt: -1 });
 
     res.json(applications.filter((application) => application.job));
@@ -106,6 +132,29 @@ export const updateApplicationStatus = async (req, res) => {
     await application.save();
 
     res.json(application);
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+export const withdrawApplication = async (req, res) => {
+  try {
+    const application = await Application.findById(req.params.id);
+
+    if (!application) {
+      return res.status(404).json({ message: "Application not found" });
+    }
+
+    if (application.applicant.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    if (application.status === "accepted" || application.status === "rejected") {
+      return res.status(400).json({ message: "This application has already been decided and cannot be withdrawn" });
+    }
+
+    await application.deleteOne();
+    res.json({ message: "Application withdrawn" });
   } catch (error) {
     handleError(res, error);
   }

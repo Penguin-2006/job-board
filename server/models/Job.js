@@ -1,15 +1,18 @@
 import mongoose from "mongoose";
+import { isClosed, startOfTodayInZone } from "../utils/deadline.js";
 
 const jobSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 120
   },
   description: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 5000
   },
   company: {
     type: String,
@@ -18,17 +21,25 @@ const jobSchema = new mongoose.Schema({
   location: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
+    maxlength: 120
   },
   salary: {
     type: Number,
     required: true,
     min: 0
   },
-  skills: [{
-    type: String,
-    trim: true
-  }],
+  skills: {
+    type: [{
+      type: String,
+      trim: true,
+      maxlength: 40
+    }],
+    validate: {
+      validator: (value) => value.length <= 20,
+      message: "A job can list at most 20 skills"
+    }
+  },
   jobType: {
     type: String,
     enum: ["full-time", "part-time", "internship", "remote"],
@@ -38,7 +49,7 @@ const jobSchema = new mongoose.Schema({
     type: Date,
     required: true,
     validate: {
-      validator: (value) => value >= new Date(new Date().setUTCHours(0, 0, 0, 0)),
+      validator: (value) => value >= startOfTodayInZone(),
       message: "Deadline cannot be in the past"
     }
   },
@@ -47,6 +58,14 @@ const jobSchema = new mongoose.Schema({
     ref: "User",
     required: true
   }
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  id: false,
+  toJSON: { virtuals: true }
+});
+
+jobSchema.virtual("isClosed").get(function () {
+  return isClosed(this.deadline);
+});
 
 export default mongoose.model("Job", jobSchema);

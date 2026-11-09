@@ -1,10 +1,17 @@
 import Job from "../models/Job.js";
 import Application from "../models/Application.js";
 import handleError from "../utils/handleError.js";
+import { escapeRegex, skillPattern } from "../utils/search.js";
+import { openDeadlineCutoff } from "../utils/deadline.js";
 
 const JOB_TYPES = ["full-time", "part-time", "internship", "remote"];
 const asString = (value) => (typeof value === "string" ? value : "");
-const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const parsePositiveInt = (value, fallback, max) => {
+  const number = Number.parseInt(value, 10);
+  if (!Number.isFinite(number) || number < 1) return fallback;
+  return Math.min(number, max);
+};
 
 export const createJob = async (req, res) => {
   const { title, description, location, salary, skills, jobType, deadline } = req.body || {};
@@ -34,7 +41,7 @@ export const getJobs = async (req, res) => {
     const skills = asString(req.query.skills);
     const location = asString(req.query.location).trim();
     const jobType = asString(req.query.jobType);
-    const filter = {};
+    const filter = { deadline: { $gte: openDeadlineCutoff() } };
 
     if (search) {
       const pattern = new RegExp(escapeRegex(search), "i");
@@ -50,7 +57,7 @@ export const getJobs = async (req, res) => {
       .split(",")
       .map((skill) => skill.trim())
       .filter(Boolean)
-      .map((skill) => new RegExp(escapeRegex(skill), "i"));
+      .map(skillPattern);
     if (skillPatterns.length) filter.skills = { $in: skillPatterns };
 
     if (location) {
@@ -59,10 +66,31 @@ export const getJobs = async (req, res) => {
 
     if (JOB_TYPES.includes(jobType)) filter.jobType = jobType;
 
-    const jobs = await Job.find(filter)
-      .populate("postedBy", "name email")
-      .sort({ createdAt: -1 });
+    const query = Job.find(filter)
+      .populate("postedBy", "name")
+      .sort({ createdAt: -1, _id: -1 });
 
+    if (req.query.page === undefined) {
+      return res.json(await query.limit(200));
+    }
+
+    const page = parsePositiveInt(req.query.page, 1, 100000);
+    const limit = parsePositiveInt(req.query.limit, 12, 50);
+
+    const [jobs, total] = await Promise.all([
+      query.skip((page - 1) * limit).limit(limit),
+      Job.countDocuments(filter)
+    ]);
+
+    res.json({ jobs, page, pages: Math.max(1, Math.ceil(total / limit)), total });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+export const getMyJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find({ postedBy: req.user._id }).sort({ createdAt: -1, _id: -1 });
     res.json(jobs);
   } catch (error) {
     handleError(res, error);
@@ -71,7 +99,7 @@ export const getJobs = async (req, res) => {
 
 export const getJobById = async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id).populate("postedBy", "name email");
+    const job = await Job.findById(req.params.id).populate("postedBy", "name");
 
     if (!job) {
       return res.status(404).json({ message: "Job not found" });
@@ -102,7 +130,7 @@ export const updateJob = async (req, res) => {
     });
 
     const updatedJob = await Job.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
+      returnDocument: "after",
       runValidators: true
     });
     res.json(updatedJob);
@@ -123,8 +151,8 @@ export const deleteJob = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    await Application.deleteMany({ job: job._id });
     await job.deleteOne();
+    await Application.deleteMany({ job: job._id });
     res.json({ message: "Job removed" });
   } catch (error) {
     handleError(res, error);

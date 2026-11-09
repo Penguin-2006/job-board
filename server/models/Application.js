@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { isHttpUrl, MAX_URL_LENGTH } from "../utils/url.js";
 
 const applicationSchema = new mongoose.Schema({
   job: {
@@ -13,7 +14,13 @@ const applicationSchema = new mongoose.Schema({
   },
   resumeUrl: {
     type: String,
-    required: true
+    required: true,
+    trim: true,
+    maxlength: MAX_URL_LENGTH,
+    validate: {
+      validator: isHttpUrl,
+      message: "A valid resume link is required"
+    }
   },
   status: {
     type: String,
