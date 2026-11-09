@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { loginStart, loginSuccess, loginFail } from "../redux/authSlice";
+import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { loginSuccess } from "../redux/authSlice";
 import axios from "../utils/axios";
+import { getErrorMessage } from "../utils/helpers";
+import useSlowNotice from "../hooks/useSlowNotice";
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -12,9 +14,10 @@ const Register = () => {
     role: "applicant",
     company: ""
   });
-  const { loading, error } = useSelector((state) => state.auth);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const slow = useSlowNotice(loading);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,17 +25,14 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(loginStart());
+    setLoading(true);
+    setError("");
     try {
       const { data } = await axios.post("/auth/register", formData);
       dispatch(loginSuccess(data));
-      if (data.role === "company") {
-        navigate("/dashboard/company");
-      } else {
-        navigate("/dashboard/applicant");
-      }
     } catch (err) {
-      dispatch(loginFail(err.response?.data?.message || "Registration failed"));
+      setError(getErrorMessage(err, "Registration failed"));
+      setLoading(false);
     }
   };
 
@@ -42,50 +42,66 @@ const Register = () => {
         <h2 className="form-title">Create an Account</h2>
 
         {error && <div className="error-box">{error}</div>}
+        {slow && (
+          <div className="notice-box">
+            The server is waking up (free hosting). This can take up to a minute, thanks for waiting.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Full Name</label>
+            <label htmlFor="register-name">Full Name</label>
             <input
+              id="register-name"
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
               required
+              maxLength={80}
+              autoComplete="name"
               className="form-input"
               placeholder="John Doe"
             />
           </div>
 
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="register-email">Email</label>
             <input
+              id="register-email"
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               required
+              autoComplete="email"
               className="form-input"
               placeholder="you@example.com"
             />
           </div>
 
           <div className="form-group">
-            <label>Password</label>
+            <label htmlFor="register-password">Password</label>
             <input
+              id="register-password"
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               required
+              minLength={8}
+              maxLength={72}
+              autoComplete="new-password"
               className="form-input"
               placeholder="••••••••"
             />
+            <p className="field-hint">At least 8 characters.</p>
           </div>
 
           <div className="form-group">
-            <label>I am a</label>
+            <label htmlFor="register-role">I am a</label>
             <select
+              id="register-role"
               name="role"
               value={formData.role}
               onChange={handleChange}
@@ -98,13 +114,15 @@ const Register = () => {
 
           {formData.role === "company" && (
             <div className="form-group">
-              <label>Company Name</label>
+              <label htmlFor="register-company">Company Name</label>
               <input
+                id="register-company"
                 type="text"
                 name="company"
                 value={formData.company}
                 onChange={handleChange}
                 required
+                maxLength={100}
                 className="form-input"
                 placeholder="Tech Corp"
               />
@@ -114,8 +132,7 @@ const Register = () => {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary"
-            style={{ width: "100%", marginTop: "8px" }}
+            className="btn-primary btn-block"
           >
             {loading ? "Creating account..." : "Register"}
           </button>

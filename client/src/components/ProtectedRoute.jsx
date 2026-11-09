@@ -1,15 +1,17 @@
 import { useSelector } from "react-redux";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
+import { dashboardPath } from "../utils/helpers";
 
 const ProtectedRoute = ({ children, role }) => {
   const { user } = useSelector((state) => state.auth);
+  const location = useLocation();
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   if (role && user.role !== role) {
-    return <Navigate to="/" />;
+    return <Navigate to={dashboardPath(user.role)} replace />;
   }
 
   return children;

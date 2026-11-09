@@ -52,7 +52,7 @@ A full stack job board application built with the MERN stack (MongoDB, Express, 
 1. Clone the repository
 
 ```
-git clone https://github.com/yourusername/job-board.git
+git clone https://github.com/Penguin-2006/job-board.git
 cd job-board
 ```
 
@@ -63,12 +63,13 @@ cd server
 npm install
 ```
 
-3. Create a .env file in the server folder
+3. Create a .env file in the server folder (see `server/.env.example`)
 
 ```
 PORT=5000
 MONGO_URI=your_mongodb_atlas_connection_string
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=a_long_random_string
+CLIENT_URL=http://localhost:5173
 ```
 
 4. Start the backend
@@ -77,15 +78,24 @@ JWT_SECRET=your_jwt_secret
 npm run dev
 ```
 
-5. Set up the client
+5. Set up the client (in a second terminal)
 
 ```
-cd ../client
+cd client
 npm install
 npm run dev
 ```
 
+`npm run dev` talks to your local server at `http://localhost:5000/api`. To use the live server instead, create `client/.env` containing `VITE_API_URL=https://job-board-server-my5v.onrender.com/api` (see `client/.env.example`).
+
 6. Open http://localhost:5173 in your browser
+
+### Running the tests
+
+```
+cd server
+npm test
+```
 
 ## Project Structure
 
@@ -113,14 +123,18 @@ job-board/
 - GET /api/auth/me - Get current user
 
 ### Jobs
-- GET /api/jobs - Get all jobs (with filters)
+- GET /api/jobs - Open jobs. Filters: `search`, `skills`, `location`, `jobType`. Add `page` and `limit` for pagination
+- GET /api/jobs/mine - Jobs posted by the logged-in company, including expired ones (company only)
 - GET /api/jobs/:id - Get single job
 - POST /api/jobs - Create a job (company only)
-- PUT /api/jobs/:id - Update a job (company only)
-- DELETE /api/jobs/:id - Delete a job (company only)
+- PUT /api/jobs/:id - Update a job (owner only)
+- DELETE /api/jobs/:id - Delete a job (owner only)
 
 ### Applications
-- POST /api/applications/:jobId - Apply for a job
-- GET /api/applications/me - Get my applications
-- GET /api/applications/job/:jobId - Get applications for a job (company only)
+- POST /api/applications/:jobId - Apply for a job (applicant only)
+- GET /api/applications/me - Get my applications (applicant only)
+- GET /api/applications/check/:jobId - Have I applied to this job? (applicant only)
+- DELETE /api/applications/:id - Withdraw an application (applicant only)
+- GET /api/applications/received - All applications to my jobs (company only)
+- GET /api/applications/job/:jobId - Applications for one job (company only)
 - PUT /api/applications/:id - Update application status (company only)

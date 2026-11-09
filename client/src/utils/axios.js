@@ -1,16 +1,20 @@
 import axios from "axios";
+import store from "../redux/store";
+import { logout } from "../redux/authSlice";
+
+export const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD
+    ? "https://job-board-server-my5v.onrender.com/api"
+    : "http://localhost:5000/api");
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://job-board-server-my5v.onrender.com/api",
+  baseURL: API_URL,
+  timeout: 60000,
 });
 
 instance.interceptors.request.use((config) => {
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem("user"));
-  } catch {
-    localStorage.removeItem("user");
-  }
+  const { user } = store.getState().auth;
   if (user && user.token) {
     config.headers.Authorization = `Bearer ${user.token}`;
   }
@@ -20,9 +24,8 @@ instance.interceptors.request.use((config) => {
 instance.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && localStorage.getItem("user")) {
-      localStorage.removeItem("user");
-      window.location.href = "/login";
+    if (error.response?.status === 401 && store.getState().auth.user) {
+      store.dispatch(logout());
     }
     return Promise.reject(error);
   }

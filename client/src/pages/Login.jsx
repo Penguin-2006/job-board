@@ -1,14 +1,17 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { loginStart, loginSuccess, loginFail } from "../redux/authSlice";
+import { Link } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { loginSuccess } from "../redux/authSlice";
 import axios from "../utils/axios";
+import { getErrorMessage } from "../utils/helpers";
+import useSlowNotice from "../hooks/useSlowNotice";
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const { loading, error } = useSelector((state) => state.auth);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const slow = useSlowNotice(loading);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -16,17 +19,14 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    dispatch(loginStart());
+    setLoading(true);
+    setError("");
     try {
       const { data } = await axios.post("/auth/login", formData);
       dispatch(loginSuccess(data));
-      if (data.role === "company") {
-        navigate("/dashboard/company");
-      } else {
-        navigate("/dashboard/applicant");
-      }
     } catch (err) {
-      dispatch(loginFail(err.response?.data?.message || "Login failed"));
+      setError(getErrorMessage(err, "Login failed"));
+      setLoading(false);
     }
   };
 
@@ -36,29 +36,38 @@ const Login = () => {
         <h2 className="form-title">Welcome Back</h2>
 
         {error && <div className="error-box">{error}</div>}
+        {slow && (
+          <div className="notice-box">
+            The server is waking up (free hosting). This can take up to a minute, thanks for waiting.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="login-email">Email</label>
             <input
+              id="login-email"
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
               required
+              autoComplete="email"
               className="form-input"
               placeholder="you@example.com"
             />
           </div>
 
           <div className="form-group">
-            <label>Password</label>
+            <label htmlFor="login-password">Password</label>
             <input
+              id="login-password"
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
               required
+              autoComplete="current-password"
               className="form-input"
               placeholder="••••••••"
             />
@@ -67,8 +76,7 @@ const Login = () => {
           <button
             type="submit"
             disabled={loading}
-            className="btn-primary"
-            style={{ width: "100%", marginTop: "8px" }}
+            className="btn-primary btn-block"
           >
             {loading ? "Logging in..." : "Login"}
           </button>

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../redux/authSlice";
+import { dashboardPath } from "../utils/helpers";
 
 const Navbar = () => {
   const { user } = useSelector((state) => state.auth);
@@ -26,7 +27,7 @@ const Navbar = () => {
           </>
         ) : (
           <>
-            <Link to={user.role === "company" ? "/dashboard/company" : "/dashboard/applicant"}>
+            <Link to={dashboardPath(user.role)}>
               Dashboard
             </Link>
             <button onClick={handleLogout} className="btn-accent">Logout</button>
