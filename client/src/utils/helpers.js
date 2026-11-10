@@ -11,3 +11,23 @@ export const getErrorMessage = (error, fallback = "Something went wrong") => {
   }
   return fallback;
 };
+
+export const formatDeadline = (value) =>
+  new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC"
+  });
+
+export const formatDate = (value) =>
+  new Date(value).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+
+export const formatSalary = (value) => `₹${Number(value).toLocaleString("en-IN")}/mo`;
+
+export const todayInIndia = () =>
+  new Date(Date.now() + 330 * 60 * 1000).toISOString().slice(0, 10);

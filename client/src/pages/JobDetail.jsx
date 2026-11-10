@@ -2,43 +2,69 @@ import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useSelector } from "react-redux";
 import axios from "../utils/axios";
+import { formatDeadline, formatSalary, getErrorMessage } from "../utils/helpers";
 
 const JobDetail = () => {
   const { id } = useParams();
   const { user } = useSelector((state) => state.auth);
+  const isApplicant = user?.role === "applicant";
+
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
   const [resumeUrl, setResumeUrl] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let ignore = false;
+
     const fetchJob = async () => {
+      setLoading(true);
+      setNotFound(false);
+      setLoadError("");
       try {
         const { data } = await axios.get(`/jobs/${id}`);
-        setJob(data);
-      } catch (error) {
-        console.error(error);
+        if (!ignore) setJob(data);
+      } catch (err) {
+        if (ignore) return;
+        const status = err.response?.status;
+        if (status === 404 || status === 400) {
+          setNotFound(true);
+        } else {
+          setLoadError(getErrorMessage(err, "Could not load this job"));
+        }
       } finally {
-        setLoading(false);
+        if (!ignore) setLoading(false);
       }
     };
+
     fetchJob();
-  }, [id]);
+    return () => {
+      ignore = true;
+    };
+  }, [id, reloadKey]);
 
   useEffect(() => {
-    if (!user || user.role !== "applicant") return;
+    setApplied(false);
+    if (!isApplicant) return undefined;
+
+    let ignore = false;
     const checkApplied = async () => {
       try {
-        const { data } = await axios.get("/applications/me");
-        if (data.some((application) => application.job._id === id)) setApplied(true);
-      } catch (error) {
-        console.error(error);
+        const { data } = await axios.get(`/applications/check/${id}`);
+        if (!ignore) setApplied(data.applied);
+      } catch {
       }
     };
     checkApplied();
-  }, [id, user]);
+    return () => {
+      ignore = true;
+    };
+  }, [id, isApplicant]);
 
   const handleApply = async (e) => {
     e.preventDefault();
@@ -48,19 +74,42 @@ const JobDetail = () => {
       await axios.post(`/applications/${id}`, { resumeUrl: resumeUrl.trim() });
       setApplied(true);
     } catch (err) {
-      setError(err.response?.data?.message || "Failed to apply");
+      setError(getErrorMessage(err, "Failed to apply"));
     } finally {
       setApplying(false);
     }
   };
 
   if (loading) return <div className="empty-state">Loading...</div>;
-  if (!job) return <div className="empty-state">Job not found.</div>;
 
-  const closed = new Date(job.deadline).setUTCHours(23, 59, 59, 999) < Date.now();
+  if (loadError) {
+    return (
+      <div className="page-container">
+        <div className="error-box">
+          <p>{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((key) => key + 1)}
+            className="btn-primary error-actions"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound || !job) {
+    return (
+      <div className="empty-state">
+        <p className="empty-gap">Job not found.</p>
+        <Link to="/jobs" className="btn-primary">Browse jobs</Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="page-container" style={{ maxWidth: "800px" }}>
+    <div className="page-container narrow">
       <div className="card">
         <div className="job-detail-header">
           <div>
@@ -72,67 +121,60 @@ const JobDetail = () => {
 
         <div className="job-detail-grid">
           <div>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Location</p>
-            <p style={{ fontWeight: "600" }}>📍 {job.location}</p>
+            <p>Location</p>
+            <p>📍 {job.location}</p>
           </div>
           <div>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Salary</p>
-            <p style={{ fontWeight: "600", color: "#1e40af" }}>
-              ₹{job.salary.toLocaleString()}/mo
-            </p>
+            <p>Salary</p>
+            <p className="salary">{formatSalary(job.salary)}</p>
           </div>
           <div>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Deadline</p>
-            <p style={{ fontWeight: "600" }}>
-              {new Date(job.deadline).toLocaleDateString()}
-            </p>
+            <p>Deadline</p>
+            <p>{formatDeadline(job.deadline)}</p>
           </div>
           <div>
-            <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Posted By</p>
-            <p style={{ fontWeight: "600" }}>{job.postedBy?.name}</p>
+            <p>Posted By</p>
+            <p>{job.postedBy?.name}</p>
           </div>
         </div>
 
-        <div style={{ marginBottom: "24px" }}>
+        <div className="detail-section">
           <h2 className="section-title">Job Description</h2>
-          <p style={{ color: "#4b5563", lineHeight: "1.7" }}>{job.description}</p>
+          <p className="job-description">{job.description}</p>
         </div>
 
-        <div style={{ marginBottom: "32px" }}>
+        <div className="detail-section">
           <h2 className="section-title">Required Skills</h2>
           <div className="skills-list">
             {job.skills.map((skill, index) => (
-              <span key={index} className="badge">{skill}</span>
+              <span key={`${skill}-${index}`} className="badge">{skill}</span>
             ))}
           </div>
         </div>
 
-        {user && user.role === "applicant" && (
+        {isApplicant && (
           <div>
             {error && <div className="error-box">{error}</div>}
             {applied ? (
               <div className="success-box">✅ You have applied for this job.</div>
-            ) : closed ? (
+            ) : job.isClosed ? (
               <div className="error-box">Applications for this job are closed.</div>
             ) : (
               <form onSubmit={handleApply}>
                 <div className="form-group">
-                  <label>Resume link</label>
+                  <label htmlFor="resume-url">Resume link</label>
                   <input
+                    id="resume-url"
                     type="url"
                     value={resumeUrl}
                     onChange={(e) => setResumeUrl(e.target.value)}
                     required
+                    maxLength={2000}
                     className="form-input"
                     placeholder="https://drive.google.com/... (sharing set to anyone with the link)"
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={applying}
-                  className="btn-primary"
-                  style={{ opacity: applying ? 0.5 : 1 }}
-                >
+                <button type="submit" disabled={applying} className="btn-primary">
                   {applying ? "Applying..." : "Apply Now"}
                 </button>
               </form>
@@ -140,9 +182,13 @@ const JobDetail = () => {
           </div>
         )}
 
+        {user?.role === "company" && (
+          <p className="muted-text">You are logged in as a company, so applying is turned off.</p>
+        )}
+
         {!user && (
-          <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
-            Please <Link to="/login" style={{ color: "#1e40af", fontWeight: "600" }}>login</Link> to apply for this job.
+          <p className="muted-text">
+            Please <Link to="/login" className="link-strong">login</Link> to apply for this job.
           </p>
         )}
       </div>

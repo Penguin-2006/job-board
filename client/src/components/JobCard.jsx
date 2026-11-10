@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
+import { formatDeadline, formatSalary } from "../utils/helpers";
 
 const JobCard = ({ job }) => {
+  const extraSkills = job.skills.length - 3;
+
   return (
     <div className="card">
       <div className="job-card-header">
@@ -13,12 +16,15 @@ const JobCard = ({ job }) => {
 
       <div className="skills-list">
         {job.skills.slice(0, 3).map((skill, index) => (
-          <span key={index} className="skill-tag">{skill}</span>
+          <span key={`${skill}-${index}`} className="skill-tag">{skill}</span>
         ))}
+        {extraSkills > 0 && <span className="skill-tag">+{extraSkills} more</span>}
       </div>
 
+      <p className="deadline-text">Apply by {formatDeadline(job.deadline)}</p>
+
       <div className="job-card-footer">
-        <p className="salary">₹{job.salary.toLocaleString()}/mo</p>
+        <p className="salary">{formatSalary(job.salary)}</p>
         <Link to={`/jobs/${job._id}`} className="btn-primary">
           View Job
         </Link>

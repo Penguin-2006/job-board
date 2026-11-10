@@ -1,109 +1,150 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import axios from "../utils/axios";
-
-const emptyForm = {
-  title: "",
-  description: "",
-  location: "",
-  salary: "",
-  skills: "",
-  jobType: "full-time",
-  deadline: ""
-};
+import JobForm from "../components/JobForm";
+import ApplicantRow from "../components/ApplicantRow";
+import { emptyJobForm, jobToForm } from "../utils/jobForm";
+import { formatDeadline, formatSalary, getErrorMessage } from "../utils/helpers";
 
 const CompanyDashboard = () => {
   const { user } = useSelector((state) => state.auth);
   const [jobs, setJobs] = useState([]);
-  const [applications, setApplications] = useState({});
+  const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState(emptyForm);
+  const [loadError, setLoadError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const [form, setForm] = useState(null);
   const [formError, setFormError] = useState("");
+  const [saving, setSaving] = useState(false);
+
   const [actionError, setActionError] = useState("");
-  const [posting, setPosting] = useState(false);
-  const today = new Date().toISOString().split("T")[0];
-
-  const fetchJobs = async () => {
-    try {
-      const { data } = await axios.get("/jobs");
-      const myJobs = data.filter((job) => job.postedBy?._id === user._id);
-      setJobs(myJobs);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchApplications = async (jobId) => {
-    try {
-      const { data } = await axios.get(`/applications/job/${jobId}`);
-      setApplications((prev) => ({ ...prev, [jobId]: data }));
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  const [rowErrors, setRowErrors] = useState({});
 
   useEffect(() => {
-    fetchJobs();
-  }, []);
+    let ignore = false;
 
-  useEffect(() => {
-    jobs.forEach((job) => fetchApplications(job._id));
-  }, [jobs]);
+    const load = async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const [jobsResponse, applicationsResponse] = await Promise.all([
+          axios.get("/jobs/mine"),
+          axios.get("/applications/received")
+        ]);
+        if (ignore) return;
+        setJobs(jobsResponse.data);
+        setApplications(applicationsResponse.data);
+      } catch (err) {
+        if (!ignore) setLoadError(getErrorMessage(err, "Could not load your dashboard"));
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [reloadKey]);
+
+  const applicationsByJob = useMemo(() => {
+    const grouped = {};
+    applications.forEach((application) => {
+      (grouped[application.job] ||= []).push(application);
+    });
+    return grouped;
+  }, [applications]);
+
+  const openForm = (job) => {
+    setForm({ job });
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleToggleForm = () => {
-    setShowForm(!showForm);
+    if (form) {
+      setForm(null);
+    } else {
+      openForm(null);
+    }
     setFormError("");
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setPosting(true);
+  const handleSave = async (payload) => {
+    setSaving(true);
     setFormError("");
     try {
-      await axios.post("/jobs", {
-        ...formData,
-        salary: Number(formData.salary),
-        skills: formData.skills.split(",").map((s) => s.trim()).filter(Boolean)
-      });
-      setShowForm(false);
-      setFormData(emptyForm);
-      fetchJobs();
-    } catch (error) {
-      setFormError(error.response?.data?.message || "Failed to post job");
+      if (form.job) {
+        const { data } = await axios.put(`/jobs/${form.job._id}`, payload);
+        setJobs((prev) => prev.map((job) => (job._id === data._id ? data : job)));
+      } else {
+        const { data } = await axios.post("/jobs", payload);
+        setJobs((prev) => [data, ...prev]);
+      }
+      setForm(null);
+    } catch (err) {
+      setFormError(getErrorMessage(err, "Failed to save the job"));
     } finally {
-      setPosting(false);
+      setSaving(false);
     }
   };
 
-  const handleStatusUpdate = async (applicationId, status, jobId) => {
-    setActionError("");
+  const handleStatusChange = async (application, status) => {
+    const previous = application.status;
+    setRowErrors((prev) => ({ ...prev, [application._id]: "" }));
+    setApplications((prev) =>
+      prev.map((item) => (item._id === application._id ? { ...item, status } : item))
+    );
     try {
-      await axios.put(`/applications/${applicationId}`, { status });
-      fetchApplications(jobId);
-    } catch (error) {
-      setActionError(error.response?.data?.message || "Failed to update status");
+      await axios.put(`/applications/${application._id}`, { status });
+    } catch (err) {
+      setApplications((prev) =>
+        prev.map((item) => (item._id === application._id ? { ...item, status: previous } : item))
+      );
+      setRowErrors((prev) => ({
+        ...prev,
+        [application._id]: getErrorMessage(err, "Failed to update the status")
+      }));
     }
   };
 
-  const handleDeleteJob = async (jobId) => {
-    if (!window.confirm("Delete this job and all its applications?")) return;
+  const handleDeleteJob = async (job) => {
+    if (!window.confirm(`Delete "${job.title}" and all its applications?`)) return;
     setActionError("");
     try {
-      await axios.delete(`/jobs/${jobId}`);
-      fetchJobs();
-    } catch (error) {
-      setActionError(error.response?.data?.message || "Failed to delete job");
+      await axios.delete(`/jobs/${job._id}`);
+      setJobs((prev) => prev.filter((item) => item._id !== job._id));
+      setApplications((prev) => prev.filter((item) => item.job !== job._id));
+      if (form?.job?._id === job._id) setForm(null);
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Failed to delete the job"));
     }
   };
 
   if (loading) return <div className="empty-state">Loading...</div>;
+
+  if (loadError) {
+    return (
+      <div className="page-container">
+        <div className="error-box">
+          <p>{loadError}</p>
+          <button
+            type="button"
+            onClick={() => setReloadKey((key) => key + 1)}
+            className="btn-primary error-actions"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const editing = form?.job;
+  const formInitialValues = editing
+    ? { ...jobToForm(editing), deadline: editing.isClosed ? "" : jobToForm(editing).deadline }
+    : emptyJobForm;
 
   return (
     <div className="page-container">
@@ -113,112 +154,24 @@ const CompanyDashboard = () => {
           <p className="dashboard-subtitle">Welcome, {user.name}</p>
         </div>
         <button onClick={handleToggleForm} className="btn-primary">
-          {showForm ? "Cancel" : "+ Post a Job"}
+          {form ? "Cancel" : "+ Post a Job"}
         </button>
       </div>
 
       {actionError && <div className="error-box">{actionError}</div>}
 
-      {showForm && (
-        <div className="card" style={{ marginBottom: "32px" }}>
-          <h2 className="section-title">Post a New Job</h2>
-          {formError && <div className="error-box">{formError}</div>}
-          <form onSubmit={handleSubmit}>
-            <div className="form-grid">
-              <div className="form-group">
-                <label>Job Title</label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                />
-              </div>
-              <div className="form-group">
-                <label>Location</label>
-                <input
-                  type="text"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleChange}
-                  required
-                  className="form-input"
-                />
-              </div>
-              <div className="form-group">
-                <label>Salary (per month)</label>
-                <input
-                  type="number"
-                  name="salary"
-                  value={formData.salary}
-                  onChange={handleChange}
-                  min="0"
-                  required
-                  className="form-input"
-                />
-              </div>
-              <div className="form-group">
-                <label>Job Type</label>
-                <select
-                  name="jobType"
-                  value={formData.jobType}
-                  onChange={handleChange}
-                  className="form-input"
-                >
-                  <option value="full-time">Full Time</option>
-                  <option value="part-time">Part Time</option>
-                  <option value="internship">Internship</option>
-                  <option value="remote">Remote</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Skills (comma separated)</label>
-                <input
-                  type="text"
-                  name="skills"
-                  value={formData.skills}
-                  onChange={handleChange}
-                  placeholder="React, Node.js, MongoDB"
-                  required
-                  className="form-input"
-                />
-              </div>
-              <div className="form-group">
-                <label>Application Deadline</label>
-                <input
-                  type="date"
-                  name="deadline"
-                  value={formData.deadline}
-                  onChange={handleChange}
-                  min={today}
-                  required
-                  className="form-input"
-                />
-              </div>
-              <div className="form-group col-span-2">
-                <label>Job Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  required
-                  rows={4}
-                  className="form-input"
-                />
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={posting}
-              className="btn-primary"
-              style={{ marginTop: "8px", opacity: posting ? 0.5 : 1 }}
-            >
-              {posting ? "Posting..." : "Post Job"}
-            </button>
-          </form>
-        </div>
+      {form && (
+        <JobForm
+          key={editing ? editing._id : "new"}
+          heading={editing ? "Edit Job" : "Post a New Job"}
+          initialValues={formInitialValues}
+          submitLabel={editing ? "Save Changes" : "Post Job"}
+          submittingLabel={editing ? "Saving..." : "Posting..."}
+          submitting={saving}
+          error={formError}
+          note={editing?.isClosed ? "This job has closed. Choose a new deadline to reopen it." : ""}
+          onSubmit={handleSave}
+        />
       )}
 
       {jobs.length === 0 ? (
@@ -226,67 +179,51 @@ const CompanyDashboard = () => {
           No jobs posted yet. Click "+ Post a Job" to get started.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-          {jobs.map((job) => (
-            <div key={job._id} className="card">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                <div>
-                  <h3 style={{ fontSize: "1.25rem", fontWeight: "700", color: "#0f172a" }}>
-                    {job.title}
-                  </h3>
-                  <p style={{ color: "#6b7280", fontSize: "0.875rem", marginTop: "4px" }}>
-                    📍 {job.location} • ₹{job.salary.toLocaleString()}/mo • {job.jobType}
-                  </p>
+        <div className="job-admin-list">
+          {jobs.map((job) => {
+            const jobApplications = applicationsByJob[job._id] || [];
+            return (
+              <div key={job._id} className="card">
+                <div className="job-admin-header">
+                  <div>
+                    <h3 className="job-admin-title">{job.title}</h3>
+                    <p className="job-admin-meta">
+                      📍 {job.location} • {formatSalary(job.salary)} • {job.jobType}
+                    </p>
+                    <p className="job-admin-meta">
+                      Deadline: {formatDeadline(job.deadline)}{" "}
+                      {job.isClosed && <span className="badge badge-red">Closed</span>}
+                    </p>
+                  </div>
+                  <div className="job-admin-actions">
+                    <button onClick={() => openForm(job)} className="edit-btn">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDeleteJob(job)} className="delete-btn">
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => handleDeleteJob(job._id)}
-                  className="delete-btn"
-                >
-                  Delete
-                </button>
+
+                <h4 className="subheading">Applications ({jobApplications.length})</h4>
+
+                {jobApplications.length === 0 ? (
+                  <p className="muted-text">No applications yet.</p>
+                ) : (
+                  <div>
+                    {jobApplications.map((application) => (
+                      <ApplicantRow
+                        key={application._id}
+                        application={application}
+                        onStatusChange={handleStatusChange}
+                        error={rowErrors[application._id]}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-
-              <h4 style={{ fontWeight: "600", color: "#0f172a", marginBottom: "12px" }}>
-                Applications ({applications[job._id]?.length || 0})
-              </h4>
-
-              {applications[job._id]?.length === 0 ? (
-                <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>No applications yet.</p>
-              ) : (
-                <div>
-                  {applications[job._id]?.map((app) => (
-                    <div key={app._id} className="applicant-row">
-                      <div>
-                        <p style={{ fontWeight: "500", color: "#0f172a" }}>{app.applicant?.name}</p>
-                        <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>{app.applicant?.email}</p>
-                        <a href={app.resumeUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.875rem", color: "#1e40af" }}>View resume</a>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span className={`badge ${
-                          app.status === "accepted" ? "badge-green" :
-                          app.status === "rejected" ? "badge-red" :
-                          app.status === "reviewed" ? "" :
-                          "badge-yellow"
-                        }`}>
-                          {app.status}
-                        </span>
-                        <select
-                          value={app.status}
-                          onChange={(e) => handleStatusUpdate(app._id, e.target.value, job._id)}
-                          className="select-input"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="reviewed">Reviewed</option>
-                          <option value="accepted">Accepted</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
